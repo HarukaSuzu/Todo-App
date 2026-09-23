@@ -3,7 +3,7 @@
 // リフレッシュしたトークンを保存できない。
 // そこでmiddlewareが「ページのレンダリングより先に」毎リクエスト実行され、
 // 必要ならトークンをリフレッシュしてcookieに書き戻す、という役割を担う。
-import { createServerClient } from '@supabase/ssr'
+import { type CookieOptions, createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function updateSession(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options?: CookieOptions }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           response = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
