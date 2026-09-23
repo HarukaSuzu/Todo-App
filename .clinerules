@@ -1,0 +1,11 @@
+# このプロジェクトについて
+
+Next.js (App Router) + TypeScript + Tailwind CSS + Supabase(Auth/RLS/Realtime) + ZodのTODOアプリ。
+
+## 守ってほしい設計方針
+
+- lib/data.ts の関数名・シグネチャ（getTodos, addTodoToFile など）は変更しない
+- データ取得はServer Component、操作はServer Actions(app/actions.ts, app/auth/actions.ts)経由で行う
+- Client Componentが必要な場合のみ 'use client' を付け、無闇に増やさない
+- 入力値のチェックは lib/validation.ts のZodスキーマを使う
+- コメントは日本語で書く
