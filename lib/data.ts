@@ -19,6 +19,8 @@ type TodoRow = {
   title: string
   completed: boolean
   created_at: string
+  due_date: string | null
+  priority: 'high' | 'medium' | 'low' | null
 }
 
 function toTodo(row: TodoRow): Todo {
@@ -27,6 +29,8 @@ function toTodo(row: TodoRow): Todo {
     title: row.title,
     completed: row.completed,
     createdAt: row.created_at,
+    dueDate: row.due_date,
+    priority: row.priority,
   }
 }
 
@@ -45,14 +49,21 @@ export async function getTodos(): Promise<Todo[]> {
 
 // 追加。RLSの insert ポリシーが「user_id = auth.uid()」を要求するため、
 // 挿入時に必ず自分のuser.idを明示的にセットする。
-export async function addTodoToFile(title: string): Promise<void> {
+// dueDateとpriorityは任意引数として追加（後方互換性のためデフォルト値をnullにする）
+export async function addTodoToFile(
+  title: string,
+  dueDate: string | null = null,
+  priority: 'high' | 'medium' | 'low' | null = null
+): Promise<void> {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return
 
-  const { error } = await supabase.from('todos').insert({ title, user_id: user.id })
+  const { error } = await supabase
+    .from('todos')
+    .insert({ title, user_id: user.id, due_date: dueDate, priority })
   if (error) throw error
 }
 
@@ -83,8 +94,18 @@ export async function deleteTodoFromFile(id: string): Promise<void> {
 }
 
 // タイトルの編集
-export async function updateTodoInFile(id: string, title: string): Promise<void> {
+// dueDateとpriorityも任意で更新できるように拡張
+export async function updateTodoInFile(
+  id: string,
+  title: string,
+  dueDate?: string | null,
+  priority?: 'high' | 'medium' | 'low' | null
+): Promise<void> {
   const supabase = await createClient()
-  const { error } = await supabase.from('todos').update({ title }).eq('id', id)
+  const updates: Record<string, string | boolean | null> = { title }
+  if (dueDate !== undefined) updates.due_date = dueDate
+  if (priority !== undefined) updates.priority = priority
+
+  const { error } = await supabase.from('todos').update(updates).eq('id', id)
   if (error) throw error
 }

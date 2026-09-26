@@ -29,3 +29,26 @@ export const authSchema = z.object({
     .string()
     .min(6, { error: 'パスワードは6文字以上で入力してください' }),
 })
+
+// 期限日: ISO形式の日付文字列または空値（null/undefined/空文字）を許容
+// transformで空文字をnullに変換し、nullableでnullも許容する
+export const dueDateSchema = z
+  .string()
+  .optional()
+  .nullable()
+  .transform((val) => (val === '' ? null : val))
+  .pipe(
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, { error: '日付はYYYY-MM-DD形式で入力してください' })
+      .nullable()
+  )
+
+// 優先度: 'high' | 'medium' | 'low' または空値を許容
+// まずstringとして受け取り、空文字をnullに変換してからenumで検証する
+export const prioritySchema = z
+  .string()
+  .optional()
+  .nullable()
+  .transform((val) => (val === '' ? null : val))
+  .pipe(z.enum(['high', 'medium', 'low']).nullable())

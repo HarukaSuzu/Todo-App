@@ -5,4 +5,6 @@ export type Todo = {
   title: string
   completed: boolean
   createdAt: string // ISO文字列で保存する（DateオブジェクトはそのままJSONにできないため）
+  dueDate: string | null // 期限日（ISO文字列またはnull）
+  priority: 'high' | 'medium' | 'low' | null // 優先度
 }

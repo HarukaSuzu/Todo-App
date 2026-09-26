@@ -21,6 +21,8 @@ type TodoRow = {
   title: string
   completed: boolean
   created_at: string
+  due_date: string | null
+  priority: 'high' | 'medium' | 'low' | null
 }
 
 function toTodo(row: TodoRow): Todo {
@@ -29,12 +31,18 @@ function toTodo(row: TodoRow): Todo {
     title: row.title,
     completed: row.completed,
     createdAt: row.created_at,
+    dueDate: row.due_date,
+    priority: row.priority,
   }
 }
+
+// ソート順の型定義
+type SortOrder = 'createdAt' | 'dueDate' | 'priority'
 
 export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
+  const [sortOrder, setSortOrder] = useState<SortOrder>('createdAt')
 
   // ---- STEP 10: Realtimeで他タブ/他セッションの変更を反映する ----
   //
@@ -146,13 +154,72 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
     }
   )
 
+  // ソート関数（完了済みは最後に、dueDate/priority未設定は最後に）
+  const sortTodos = (todos: Todo[]): Todo[] => {
+    return [...todos].sort((a, b) => {
+      // 完了済みは最後に回す（共通ルール）
+      if (a.completed !== b.completed) {
+        return a.completed ? 1 : -1
+      }
+
+      switch (sortOrder) {
+        case 'dueDate': {
+          // 期日が近い順（未設定は最後）
+          if (a.dueDate === null && b.dueDate === null) return 0
+          if (a.dueDate === null) return 1
+          if (b.dueDate === null) return -1
+          return a.dueDate.localeCompare(b.dueDate)
+        }
+        case 'priority': {
+          // 優先度が高い順（未設定は最後）
+          const priorityRank: Record<NonNullable<Todo['priority']>, number> = {
+            high: 3,
+            medium: 2,
+            low: 1,
+          }
+          const rankA = a.priority ? priorityRank[a.priority] : 0
+          const rankB = b.priority ? priorityRank[b.priority] : 0
+          if (rankA !== rankB) return rankB - rankA // 高い順
+          // 優先度が同じなら作成日時でソート
+          return a.createdAt.localeCompare(b.createdAt)
+        }
+        case 'createdAt':
+        default: {
+          // 追加順（作成日時の古い順）
+          return a.createdAt.localeCompare(b.createdAt)
+        }
+      }
+    })
+  }
+
+  // 表示用にソートした配列を作成（optimisticTodosを基準にする）
+  const sortedTodos = sortTodos(optimisticTodos)
+
   if (optimisticTodos.length === 0) {
     return <p className="text-sm text-slate-500">まだTODOがありません。</p>
   }
 
   return (
-    <ul className="space-y-2">
-      {optimisticTodos.map((todo) => {
+    <div className="space-y-4">
+      {/* ソート選択 */}
+      <div className="flex items-center gap-2">
+        <label htmlFor="sort-order" className="text-sm text-slate-600">
+          並び替え:
+        </label>
+        <select
+          id="sort-order"
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+          className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+        >
+          <option value="createdAt">追加順</option>
+          <option value="dueDate">期日が近い順</option>
+          <option value="priority">優先度が高い順</option>
+        </select>
+      </div>
+
+      <ul className="space-y-2">
+        {sortedTodos.map((todo) => {
         const isEditing = todo.id === editingId
 
         return (
@@ -272,5 +339,6 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
         )
       })}
     </ul>
+  </div>
   )
 }

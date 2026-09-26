@@ -16,7 +16,7 @@ import {
   deleteTodoFromFile,
   updateTodoInFile,
 } from '@/lib/data'
-import { todoTitleSchema, todoIdSchema } from '@/lib/validation'
+import { todoTitleSchema, todoIdSchema, dueDateSchema, prioritySchema } from '@/lib/validation'
 
 // ---- STEP 11: Zodによるバリデーション + useActionState ----
 //
@@ -35,18 +35,21 @@ export async function addTodo(
 ): Promise<ActionState> {
   const result = todoTitleSchema.safeParse(formData.get('title'))
   if (!result.success) {
-    // safeParseが失敗すると、issues配列に「どこがどう悪いか」が入っている。
-    // 今回は1つのフィールドしか無いので、最初のエラーメッセージだけ使う。
     return { error: result.error.issues[0].message }
   }
 
-  await addTodoToFile(result.data)
+  const dueDateResult = dueDateSchema.safeParse(formData.get('dueDate'))
+  if (!dueDateResult.success) {
+    return { error: dueDateResult.error.issues[0].message }
+  }
 
-  // ---- STEP 4: revalidatePath ----
-  // Server Actionでデータを更新しただけでは、
-  // Next.jsはそれに気づいて画面を再取得してくれるわけではない。
-  // revalidatePath('/') を呼ぶことで「'/' のキャッシュはもう古いので、
-  // 次に表示するときはサーバーから最新のデータを取り直して」と明示的に伝えている。
+  const priorityResult = prioritySchema.safeParse(formData.get('priority'))
+  if (!priorityResult.success) {
+    return { error: priorityResult.error.issues[0].message }
+  }
+
+  await addTodoToFile(result.data, dueDateResult.data, priorityResult.data)
+
   revalidatePath('/')
 
   return {}
@@ -88,7 +91,17 @@ export async function updateTodo(formData: FormData): Promise<ActionState> {
     return { error: titleResult.error.issues[0].message }
   }
 
-  await updateTodoInFile(idResult.data, titleResult.data)
+  const dueDateResult = dueDateSchema.safeParse(formData.get('dueDate'))
+  if (!dueDateResult.success) {
+    return { error: dueDateResult.error.issues[0].message }
+  }
+
+  const priorityResult = prioritySchema.safeParse(formData.get('priority'))
+  if (!priorityResult.success) {
+    return { error: priorityResult.error.issues[0].message }
+  }
+
+  await updateTodoInFile(idResult.data, titleResult.data, dueDateResult.data, priorityResult.data)
   revalidatePath('/')
   return {}
 }

@@ -21,7 +21,7 @@ export function TodoForm() {
   const [state, formAction] = useActionState(addTodo, initialState)
 
   return (
-    <form action={formAction} className="space-y-1">
+    <form action={formAction} className="space-y-2">
       <div className="flex gap-2">
         <input
           type="text"
@@ -32,6 +32,24 @@ export function TodoForm() {
         />
         <SubmitButton pendingText="追加中...">追加</SubmitButton>
       </div>
+
+      <div className="flex gap-2">
+        <input
+          type="date"
+          name="dueDate"
+          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+        />
+        <select
+          name="priority"
+          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+        >
+          <option value="">未選択</option>
+          <option value="high">高</option>
+          <option value="medium">中</option>
+          <option value="low">低</option>
+        </select>
+      </div>
+
       {state.error && <p className="text-xs text-red-500">{state.error}</p>}
     </form>
   )
