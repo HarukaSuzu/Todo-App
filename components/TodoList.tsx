@@ -1,17 +1,39 @@
 'use client'
 
-import { useEffect, useOptimistic, useState } from 'react'
+import { useEffect, useOptimistic, useRef, useState } from 'react'
 import type { Todo } from '@/lib/types'
 import { toggleTodo, deleteTodo, updateTodo } from '@/app/actions'
 import { createClient } from '@/lib/supabase/client'
-import { todoTitleSchema } from '@/lib/validation'
+import { todoTitleSchema, dueDateSchema, prioritySchema } from '@/lib/validation'
+
+
+// "2026-10-15" のようなISO形式の日付文字列を "2026/10/15" に変換する。
+// new Date()でパースし直すと、実行環境のタイムゾーンによって
+// 日付が前後にずれる可能性があるので、文字列としてそのまま置換するだけにしている。
+function formatDueDate(dueDate: string): string {
+  return dueDate.replaceAll('-', '/')
+}
+
+// 優先度ごとの表示ラベル
+const priorityLabel: Record<'high' | 'medium' | 'low', string> = {
+  high: '高',
+  medium: '中',
+  low: '低',
+}
+
+// 優先度ごとの薄い背景色（Tailwindのユーティリティクラス）
+const priorityBadgeClass: Record<'high' | 'medium' | 'low', string> = {
+  high: 'bg-red-100 text-red-700',
+  medium: 'bg-green-100 text-green-700',
+  low: 'bg-blue-100 text-blue-700',
+}
 
 // 「今どのTODOを編集中か」はもうURLクエリではなく、
 // このClient Component内の useState で素直に持てるようになった。
 type OptimisticAction =
   | { type: 'toggle'; id: string }
   | { type: 'delete'; id: string }
-  | { type: 'edit'; id: string; title: string }
+  | { type: 'edit'; id: string; title: string; dueDate: string | null; priority: 'high' | 'medium' | 'low' | null }
 
 // Realtimeで届くpayload.new/payload.oldの形（テーブルの列名そのまま）。
 // lib/data.tsのTodoRowと同じ形だが、Client Componentからサーバー専用の
@@ -39,10 +61,21 @@ function toTodo(row: TodoRow): Todo {
 // ソート順の型定義
 type SortOrder = 'createdAt' | 'dueDate' | 'priority'
 
+// 編集中のTODOデータを保持する型
+type EditingTodo = {
+  id: string
+  title: string
+  dueDate: string | null
+  priority: 'high' | 'medium' | 'low' | null
+}
+
 export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingTodo, setEditingTodo] = useState<EditingTodo | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [sortOrder, setSortOrder] = useState<SortOrder>('createdAt')
+  const [deletingTodoId, setDeletingTodoId] = useState<string | null>(null)
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  const deleteDialogRef = useRef<HTMLDialogElement>(null)
 
   // ---- STEP 10: Realtimeで他タブ/他セッションの変更を反映する ----
   //
@@ -148,7 +181,9 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
           return state.filter((t) => t.id !== action.id)
         case 'edit':
           return state.map((t) =>
-            t.id === action.id ? { ...t, title: action.title } : t
+            t.id === action.id
+              ? { ...t, title: action.title, dueDate: action.dueDate, priority: action.priority }
+              : t
           )
       }
     }
@@ -195,6 +230,66 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
   // 表示用にソートした配列を作成（optimisticTodosを基準にする）
   const sortedTodos = sortTodos(optimisticTodos)
 
+  // 編集用ダイアログを開くハンドラ
+  const handleEditClick = (todo: Todo) => {
+    setEditingTodo({
+      id: todo.id,
+      title: todo.title,
+      dueDate: todo.dueDate,
+      priority: todo.priority,
+    })
+    setEditError(null)
+  }
+
+  // editingTodoがセットされたら、ネイティブのモーダルとして開く。
+  // showModal()を使うと、::backdrop（背景の暗転）やEscキーでのクローズが
+  // ブラウザ標準機能として手に入る。
+  useEffect(() => {
+    if (editingTodo) {
+      dialogRef.current?.showModal()
+    }
+  }, [editingTodo])
+
+  // deletingTodoIdがセットされたら、削除確認ダイアログを開く
+  useEffect(() => {
+    if (deletingTodoId) {
+      deleteDialogRef.current?.showModal()
+    }
+  }, [deletingTodoId])
+
+  // Escキーなど、ブラウザ側の操作でdialogが閉じられたときにも
+  // Reactのstate（editingTodo）を必ず同期させておく。
+  const handleDialogClose = () => {
+    setEditingTodo(null)
+    setEditError(null)
+  }
+
+  // 削除確認ダイアログを開くハンドラ
+  const handleDeleteClick = (id: string) => {
+    setDeletingTodoId(id)
+  }
+
+  // 削除確認ダイアログを閉じるハンドラ
+  const handleDeleteDialogClose = () => {
+    setDeletingTodoId(null)
+  }
+
+  // 削除確認ダイアログでOKが押されたときの処理
+  const handleDeleteConfirm = async (formData: FormData) => {
+    const id = formData.get('id') as string
+    addOptimisticUpdate({ type: 'delete', id })
+    await deleteTodo(formData)
+    handleDeleteDialogClose()
+  }
+
+  // <dialog>自体をクリックしたとき（＝背景=::backdropをクリックしたとき）だけ閉じる。
+  // カード部分をクリックしたときは e.target がその子要素になるので閉じない。
+  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    if (e.target === e.currentTarget) {
+      dialogRef.current?.close()
+    }
+  }
+
   if (optimisticTodos.length === 0) {
     return <p className="text-sm text-slate-500">まだTODOがありません。</p>
   }
@@ -219,68 +314,12 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
       </div>
 
       <ul className="space-y-2">
-        {sortedTodos.map((todo) => {
-        const isEditing = todo.id === editingId
-
-        return (
+        {sortedTodos.map((todo) => (
           <li
             key={todo.id}
             className="flex items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2"
           >
-            {isEditing ? (
-              <div className="flex-1 space-y-1">
-                <form
-                  action={async (formData: FormData) => {
-                    // サーバーと同じtodoTitleSchemaをここでも使い、
-                    // わざわざサーバーに送らなくても即座にエラーを出せるようにする。
-                    // ただし本当に信頼できるのはサーバー側の結果なので、
-                    // ここで通っても updateTodo 側でも同じスキーマで再検証している。
-                    const result = todoTitleSchema.safeParse(formData.get('title'))
-                    if (!result.success) {
-                      setEditError(result.error.issues[0].message)
-                      return
-                    }
-
-                    // 楽観的更新 → 先に編集モードを抜ける → 実際のServer Actionを呼ぶ、の順。
-                    // <form action={...}>にはServer Actionそのものだけでなく、
-                    // こうした普通の非同期関数も渡せる（中で好きなだけ処理を挟める）。
-                    setEditError(null)
-                    addOptimisticUpdate({ type: 'edit', id: todo.id, title: result.data })
-                    setEditingId(null)
-                    await updateTodo(formData)
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <input type="hidden" name="id" value={todo.id} />
-                  <input
-                    type="text"
-                    name="title"
-                    defaultValue={todo.title}
-                    autoFocus
-                    className="flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-md bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700"
-                  >
-                    保存
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingId(null)
-                      setEditError(null)
-                    }}
-                    className="text-xs text-slate-500 hover:underline"
-                  >
-                    キャンセル
-                  </button>
-                </form>
-                {editError && <p className="text-xs text-red-500">{editError}</p>}
-              </div>
-            ) : (
-              <>
-                <form
+            <form
                   action={async (formData: FormData) => {
                     addOptimisticUpdate({ type: 'toggle', id: todo.id })
                     await toggleTodo(formData)
@@ -296,49 +335,211 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
                   </button>
                 </form>
 
-                <span
-                  className={
-                    todo.completed
-                      ? 'flex-1 text-sm text-slate-400 line-through'
-                      : 'flex-1 text-sm'
-                  }
-                >
+                <div className="flex flex-1 flex-wrap items-center gap-2">
+                  <span
+                    className={
+                      todo.completed
+                      ? 'text-sm text-slate-400 line-through'
+                      : 'text-sm'
+                    }
+                  >
                   {todo.title}
-                </span>
+                  </span>
 
-                {/* useStateで編集状態を持てるようになったので、
-                    リンクではなくただのボタン（onClick）で切り替えられる */}
+                  {todo.dueDate && (
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                      {formatDueDate(todo.dueDate)}
+                    </span>
+                  )}
+
+                  {todo.priority && (
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-xs font-medium ${priorityBadgeClass[todo.priority]}`}
+                    >
+                    {priorityLabel[todo.priority]}
+                    </span>
+                  )}
+                </div>
+
+                {/* 編集ボタンでダイアログを開く */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingId(todo.id)
-                    setEditError(null)
-                  }}
+                  onClick={() => handleEditClick(todo)}
                   className="text-xs text-slate-500 hover:underline"
                 >
                   編集
                 </button>
 
-                <form
-                  action={async (formData: FormData) => {
-                    addOptimisticUpdate({ type: 'delete', id: todo.id })
-                    await deleteTodo(formData)
-                  }}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteClick(todo.id)}
+                  className="text-xs text-red-500 hover:underline"
                 >
-                  <input type="hidden" name="id" value={todo.id} />
-                  <button
-                    type="submit"
-                    className="text-xs text-red-500 hover:underline"
-                  >
-                    削除
-                  </button>
-                </form>
-              </>
-            )}
+                  削除
+                </button>
+            
           </li>
-        )
-      })}
-    </ul>
-  </div>
+        ))}
+      </ul>
+
+      {/* 編集用モーダルダイアログ */}
+      {editingTodo && (
+        <dialog
+          ref={dialogRef}
+          onClick={handleDialogClick}
+          onClose={handleDialogClose}
+          className="m-auto rounded-lg p-0 backdrop:bg-black/50"
+        >
+          {/* 背景オーバーレイ（クリックで閉じる） */}
+          <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
+
+          <form
+            action={async (formData: FormData) => {
+              const titleResult = todoTitleSchema.safeParse(formData.get('title'))
+              if (!titleResult.success) {
+                setEditError(titleResult.error.issues[0].message)
+                return
+              }
+
+              const dueDateResult = dueDateSchema.safeParse(formData.get('dueDate'))
+              if (!dueDateResult.success) {
+                setEditError(dueDateResult.error.issues[0].message)
+                return
+              }
+
+              const priorityResult = prioritySchema.safeParse(formData.get('priority'))
+              if (!priorityResult.success) {
+                setEditError(priorityResult.error.issues[0].message)
+                return
+              }
+
+              setEditError(null)
+              addOptimisticUpdate({
+                type: 'edit',
+                id: editingTodo.id,
+                title: titleResult.data,
+                dueDate: dueDateResult.data,
+                priority: priorityResult.data,
+              })
+              handleDialogClose()
+              await updateTodo(formData)
+            }}
+            className="space-y-4"
+          >
+            <h2 className="text-lg font-semibold text-slate-900">TODOを編集</h2>
+
+            <input type="hidden" name="id" value={editingTodo.id} />
+
+            <div>
+              <label htmlFor="edit-title" className="block text-sm font-medium text-slate-700 mb-1">
+                タイトル <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="edit-title"
+                name="title"
+                defaultValue={editingTodo.title}
+                autoFocus
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                required
+                maxLength={200}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="edit-dueDate" className="block text-sm font-medium text-slate-700 mb-1">
+                期限日
+              </label>
+              <input
+                type="date"
+                id="edit-dueDate"
+                name="dueDate"
+                defaultValue={editingTodo.dueDate ?? ''}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="edit-priority" className="block text-sm font-medium text-slate-700 mb-1">
+                優先度
+              </label>
+              <select
+                id="edit-priority"
+                name="priority"
+                defaultValue={editingTodo.priority ?? ''}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+              >
+                <option value="">なし</option>
+                <option value="high">高</option>
+                <option value="medium">中</option>
+                <option value="low">低</option>
+              </select>
+            </div>
+
+            {editError && (
+              <p className="text-sm text-red-500" role="alert">
+                {editError}
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={handleDialogClose}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                キャンセル
+              </button>
+              <button
+                type="submit"
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+              >
+                保存
+              </button>
+            </div>
+          </form>
+          </div>
+        </dialog>
+      )}
+
+      {/* 削除確認ダイアログ */}
+      {deletingTodoId && (
+        <dialog
+          ref={deleteDialogRef}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              deleteDialogRef.current?.close()
+            }
+          }}
+          onClose={handleDeleteDialogClose}
+          className="m-auto rounded-lg p-0 backdrop:bg-black/50"
+        >
+          <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
+            <form
+              action={handleDeleteConfirm}
+              className="space-y-4"
+            >
+              <input type="hidden" name="id" value={deletingTodoId} />
+              <p className="text-sm text-slate-600">本当に削除しますか？</p>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleDeleteDialogClose}
+                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  キャンセル
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                >
+                  削除
+                </button>
+              </div>
+            </form>
+          </div>
+        </dialog>
+      )}
+    </div>
   )
 }
