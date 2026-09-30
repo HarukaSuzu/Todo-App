@@ -35,8 +35,14 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // 未ログインで /login 以外にアクセスしようとしたらログインページへ。
-  if (!user && !request.nextUrl.pathname.startsWith('/login')) {
+    // 未ログインで /login, /auth 以外にアクセスしようとしたらログインページへ。
+  // /auth/confirm はメール内のリンクからアクセスされる時点ではまだ未ログインなので、
+  // ここで弾いてしまうと確認処理そのものが実行できなくなる。
+  const isPublicPath =
+    request.nextUrl.pathname.startsWith('/login') ||
+    request.nextUrl.pathname.startsWith('/auth')
+
+  if (!user && !isPublicPath) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

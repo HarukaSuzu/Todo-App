@@ -13,7 +13,10 @@ export default async function LoginPage({
   return (
     <main className="space-y-6">
       <h1 className="text-2xl font-bold">ログイン</h1>
-
+      <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700">
+        ポートフォリオ確認用に、デモ用アカウントの情報を入力済みにしています。
+        そのまま「ログイン」を押すだけでお試しいただけます。
+      </p>
       {message && (
         <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
           {message}
@@ -32,6 +35,8 @@ export default async function LoginPage({
             id="email"
             name="email"
             type="email"
+            defaultValue="demo@example.com"
+            placeholder="メールアドレス"
             required
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
           />
@@ -44,6 +49,8 @@ export default async function LoginPage({
             id="password"
             name="password"
             type="password"
+            defaultValue="demopass123"
+            placeholder="パスワード"
             required
             minLength={6}
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
