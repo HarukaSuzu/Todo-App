@@ -13,7 +13,7 @@ export default async function LoginPage({
   return (
     <main className="space-y-6">
       <h1 className="text-2xl font-bold">ログイン</h1>
-      <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700">
+      <p className="rounded-md bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
         ポートフォリオ確認用に、デモ用アカウントの情報を入力済みにしています。
         そのまま「ログイン」を押すだけでお試しいただけます。
       </p>
@@ -38,7 +38,7 @@ export default async function LoginPage({
             defaultValue="demo@example.com"
             placeholder="メールアドレス"
             required
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="w-full rounded-md border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-slate-800 dark:text-slate-100"
           />
         </div>
         <div>
@@ -53,21 +53,21 @@ export default async function LoginPage({
             placeholder="パスワード"
             required
             minLength={6}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="w-full rounded-md border border-slate-300 dark:border-slate-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-slate-800 dark:text-slate-100"
           />
         </div>
         <div className="flex gap-2">
           <button
             type="submit"
             formAction={signIn}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900"
           >
             ログイン
           </button>
           <button
             type="submit"
             formAction={signUp}
-            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100"
+            className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-100 dark:border-slate-700"
           >
             新規登録
           </button>

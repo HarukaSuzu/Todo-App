@@ -26,7 +26,7 @@ export default async function Home() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">TODOリスト</h1>
         <form action={signOut}>
-          <button type="submit" className="text-xs text-slate-500 hover:underline">
+          <button type="submit" className="text-xs text-slate-500 dark:text-slate-400 hover:underline">
             ログアウト（{user.email}）
           </button>
         </form>

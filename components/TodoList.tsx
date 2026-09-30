@@ -23,9 +23,9 @@ const priorityLabel: Record<'high' | 'medium' | 'low', string> = {
 
 // 優先度ごとの薄い背景色（Tailwindのユーティリティクラス）
 const priorityBadgeClass: Record<'high' | 'medium' | 'low', string> = {
-  high: 'bg-red-100 text-red-700',
-  medium: 'bg-green-100 text-green-700',
-  low: 'bg-blue-100 text-blue-700',
+  high: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  medium: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  low: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
 }
 
 // 「今どのTODOを編集中か」はもうURLクエリではなく、
@@ -291,21 +291,21 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
   }
 
   if (optimisticTodos.length === 0) {
-    return <p className="text-sm text-slate-500">まだTODOがありません。</p>
+    return <p className="text-sm text-slate-500 dark:text-slate-400">まだTODOがありません。</p>
   }
 
   return (
     <div className="space-y-4">
       {/* ソート選択 */}
       <div className="flex items-center gap-2">
-        <label htmlFor="sort-order" className="text-sm text-slate-600">
+        <label htmlFor="sort-order" className="text-sm text-slate-600 dark:text-slate-400">
           並び替え:
         </label>
         <select
           id="sort-order"
           value={sortOrder}
           onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-          className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+          className="rounded-md border border-slate-300 dark:border-slate-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:bg-slate-800 dark:text-slate-100"
         >
           <option value="createdAt">追加順</option>
           <option value="dueDate">期日が近い順</option>
@@ -317,7 +317,7 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
         {sortedTodos.map((todo) => (
           <li
             key={todo.id}
-            className="flex items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2"
+            className="flex items-center gap-3 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2"
           >
             <form
                   action={async (formData: FormData) => {
@@ -347,7 +347,7 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
                   </span>
 
                   {todo.dueDate && (
-                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                    <span className="rounded-md bg-slate-100 dark:bg-slate-900 px-2 py-0.5 text-xs text-slate-600 dark:text-slate-400">
                       {formatDueDate(todo.dueDate)}
                     </span>
                   )}
@@ -365,7 +365,7 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
                 <button
                   type="button"
                   onClick={() => handleEditClick(todo)}
-                  className="text-xs text-slate-500 hover:underline"
+                  className="text-xs text-slate-500 dark:text-slate-400 hover:underline"
                 >
                   編集
                 </button>
@@ -391,7 +391,7 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
           className="m-auto rounded-lg p-0 backdrop:bg-black/50"
         >
           {/* 背景オーバーレイ（クリックで閉じる） */}
-          <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-800">
 
           <form
             action={async (formData: FormData) => {
@@ -426,12 +426,12 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
             }}
             className="space-y-4"
           >
-            <h2 className="text-lg font-semibold text-slate-900">TODOを編集</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">TODOを編集</h2>
 
             <input type="hidden" name="id" value={editingTodo.id} />
 
             <div>
-              <label htmlFor="edit-title" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="edit-title" className="block text-sm font-medium text-slate-700 mb-1 dark:text-slate-400">
                 タイトル <span className="text-red-500">*</span>
               </label>
               <input
@@ -447,7 +447,7 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
             </div>
 
             <div>
-              <label htmlFor="edit-dueDate" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="edit-dueDate" className="block text-sm font-medium text-slate-700 mb-1 dark:text-slate-400">
                 期限日
               </label>
               <input
@@ -460,7 +460,7 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
             </div>
 
             <div>
-              <label htmlFor="edit-priority" className="block text-sm font-medium text-slate-700 mb-1">
+              <label htmlFor="edit-priority" className="block text-sm font-medium text-slate-700 mb-1 dark:text-slate-400">
                 優先度
               </label>
               <select
@@ -486,13 +486,13 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
               <button
                 type="button"
                 onClick={handleDialogClose}
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-700"
               >
                 キャンセル
               </button>
               <button
                 type="submit"
-                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-400"
               >
                 保存
               </button>
@@ -514,18 +514,18 @@ export function TodoList({ todos, userId }: { todos: Todo[]; userId: string }) {
           onClose={handleDeleteDialogClose}
           className="m-auto rounded-lg p-0 backdrop:bg-black/50"
         >
-          <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl dark:bg-slate-800">
             <form
               action={handleDeleteConfirm}
               className="space-y-4"
             >
               <input type="hidden" name="id" value={deletingTodoId} />
-              <p className="text-sm text-slate-600">本当に削除しますか？</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">本当に削除しますか？</p>
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={handleDeleteDialogClose}
-                  className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-slate-300 dark:border-slate-700 px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-400 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-700"
                 >
                   キャンセル
                 </button>
